@@ -1,2 +1,3 @@
-# ece-projects
-ECE hardware and electronics projects — PCB design, circuit prototypes, and embedded systems built at PLM.
+**Hardware and electronics projects from my ECE coursework at PLM.** \
+Covers PCB fabrication, analog circuit design, combinational logic, 
+and embedded systems — built and tested as functional prototypes.
