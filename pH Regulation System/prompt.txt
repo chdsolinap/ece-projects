@@ -1,0 +1,51 @@
+=== 1 ===
+Members:
+Cajayon, Charles Aldus A.
+Calvan, Laurence King S.
+Carel, Kirby Bryant L.
+Jacobe, Jan Leander G.
+Ninonuevo, Dan David M. 
+Solinap, Charles Hendricks D.
+
+Course Code: ECE 0323.1
+Professor: Engr. Charles G. Juarizo
+Submission Date: 05/13/2026
+I will give you sample cover page.
+
+=== 2 ===
+I will give you the table of the voltage values during the calibration that we recorded from the serial monitor. The table has timestamps, voltage, and the corresponding pH.
+The calibration constants are the one we used in the latest code.
+We did conditioning earlier, 45mins in pH 4.00.
+Verification check was done, we alternately submerged the probe in distilled, 6.86, 4.00, and 9.18, the pH reads correctly.
+
+=== 3 ===
+Dose duration is adjusted to just 10ms. It drops enough solution to cause 0.1-0.2 down/up in the current pH level value.
+Mixing time is changed to 10s. Just enough to make it visible/demo the up/down effect of the drop.
+I guess Minimum interval between doses should be 9s or match the mixing time?
+
+=== 4 ===
+the pH stays steady undisturbed.
+5s manual shake can already show the 0.1-0.2 up/down in the pH level after the 10ms dose time droplets.
+We also did putting vinegar then it drop from 6 to 3, then add baking soda and it went to 8 (note: we just poured without measuring)
+
+=== 5 ===
+i think the name of the shop is not necessary. need to check the price yet.
+
+=== 6 ===
+Create a prompt for the block diagram, i think I will ask gemini nano banana to generate the photo.
+We already have a wiring schematic.
+We can take a picture of the whole system/final prototype.
+No need for the calibration plot if you still need more info besides the one that I will send you and if you cant generate one, same for the disturbance response plot.
+Make prompt for this software flowchart.
+
+=== 7 ===
+I will give you the code too. But you need to finalize it first, remove the initial questions during startup where i need to input y/n on a question if the pump# is working. the answer is no, they are not working during startup so i think its unnecessary, also, we will not be connecting it to a laptop because the Arduino is supposed to work alone on itself.
+
+=== 8 ===
+I have no references, you can search and include few.
+
+=== 9 ===
+No page limit but dont make it too long, might consume all my current session token.
+
+=== 10 ===
+Formal academic english

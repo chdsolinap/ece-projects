@@ -1,0 +1,841 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Smart Parking</title>
+
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:        #0b0d14;
+    --bg-2:      #0f1320;
+    --surface:   #161a2a;
+    --card:      #1c2138;
+    --border:    #2a3050;
+    --border-2:  #353d63;
+    --text:      #ecf0ff;
+    --muted:     #8a92b8;
+    --muted-2:   #5d6589;
+    --green:     #22c55e;
+    --green-bg:  #22c55e1a;
+    --red:       #ef4444;
+    --red-bg:    #ef44441a;
+    --amber:     #f59e0b;
+    --amber-bg:  #f59e0b1a;
+    --blue:      #3b82f6;
+    --blue-bg:   #3b82f61a;
+    --radius:    14px;
+    --radius-sm: 8px;
+  }
+
+  html, body { height: 100%; }
+
+  body {
+    background:
+      radial-gradient(1200px 600px at 50% -200px, #1e2547 0%, transparent 60%),
+      var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ── AUTH SCREEN ── */
+  #auth-screen {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 24px;
+  }
+
+  .auth-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 36px 28px 28px;
+    width: 100%;
+    max-width: 380px;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+  }
+
+  .auth-logo {
+    width: 56px; height: 56px;
+    border-radius: 14px;
+    background: linear-gradient(135deg, #3b82f6 0%, #1e40af 100%);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 28px;
+    margin: 0 auto 14px;
+    box-shadow: 0 8px 24px rgba(59,130,246,0.35);
+  }
+
+  .auth-title {
+    font-size: 22px;
+    font-weight: 700;
+    text-align: center;
+    margin-bottom: 6px;
+    letter-spacing: -0.01em;
+  }
+
+  .auth-sub {
+    font-size: 13px;
+    color: var(--muted);
+    text-align: center;
+    margin-bottom: 28px;
+  }
+
+  .field { margin-bottom: 14px; }
+
+  .field label {
+    display: block;
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 6px;
+    font-weight: 500;
+    letter-spacing: 0.02em;
+  }
+
+  .field input {
+    width: 100%;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 12px 14px;
+    color: var(--text);
+    font-size: 15px;
+    outline: none;
+    transition: border-color 0.2s, background 0.2s;
+  }
+
+  .field input:focus {
+    border-color: var(--blue);
+    background: #1e2440;
+  }
+
+  .btn-primary {
+    width: 100%;
+    background: linear-gradient(180deg, #3b82f6 0%, #2563eb 100%);
+    color: #fff;
+    border: none;
+    border-radius: var(--radius-sm);
+    padding: 13px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    margin-top: 8px;
+    transition: transform 0.1s, box-shadow 0.2s;
+    box-shadow: 0 4px 14px rgba(59,130,246,0.25);
+  }
+  .btn-primary:hover  { box-shadow: 0 6px 20px rgba(59,130,246,0.35); }
+  .btn-primary:active { transform: translateY(1px); }
+  .btn-primary:disabled { opacity: 0.45; cursor: not-allowed; box-shadow: none; }
+
+  .auth-error {
+    color: var(--red);
+    font-size: 13px;
+    text-align: center;
+    margin-top: 14px;
+    min-height: 18px;
+  }
+
+  /* ── DASHBOARD ── */
+  #app-screen { display: none; }
+
+  .topbar {
+    background: rgba(15, 19, 32, 0.85);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-bottom: 1px solid var(--border);
+    padding: 14px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+
+  .topbar-left { display: flex; align-items: center; gap: 12px; }
+
+  .topbar-logo {
+    width: 32px; height: 32px;
+    border-radius: 8px;
+    background: linear-gradient(135deg, #3b82f6 0%, #1e40af 100%);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+    box-shadow: 0 4px 12px rgba(59,130,246,0.3);
+  }
+
+  .topbar-title { font-size: 16px; font-weight: 600; letter-spacing: -0.01em; }
+
+  .topbar-right { display: flex; align-items: center; gap: 10px; }
+
+  .conn-pill {
+    display: flex; align-items: center; gap: 6px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 5px 10px;
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .conn-pill .dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: var(--muted-2);
+    transition: background 0.3s, box-shadow 0.3s;
+  }
+  .conn-pill.online  .dot { background: var(--green); box-shadow: 0 0 8px var(--green); }
+  .conn-pill.offline .dot { background: var(--red);   box-shadow: 0 0 8px var(--red); }
+  .conn-pill.online  .label::before  { content: 'Connected'; }
+  .conn-pill.offline .label::before  { content: 'Offline'; }
+  .conn-pill         .label::before  { content: 'Connecting…'; }
+
+  .signout-btn {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    border-radius: var(--radius-sm);
+    padding: 6px 12px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: border-color 0.2s, color 0.2s;
+  }
+  .signout-btn:hover { border-color: var(--red); color: var(--red); }
+
+  .content { padding: 24px 16px 40px; max-width: 640px; margin: 0 auto; }
+
+  /* Summary card */
+  .summary-card {
+    background: linear-gradient(135deg, var(--surface) 0%, #1a2038 100%);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 22px 22px 20px;
+    margin-bottom: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+  }
+
+  .summary-label {
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-weight: 500;
+  }
+  .summary-count {
+    font-size: 44px;
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: -0.02em;
+    background: linear-gradient(180deg, #fff 0%, #b8c0e0 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .summary-total {
+    font-size: 13px;
+    color: var(--muted);
+    margin-top: 4px;
+  }
+
+  .summary-ring {
+    width: 78px; height: 78px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: 600;
+    border: 2px solid transparent;
+    transition: all 0.3s;
+    flex-shrink: 0;
+  }
+
+  /* Section title */
+  .section-title {
+    font-size: 12px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin-bottom: 12px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .section-title .hint { font-weight: 400; text-transform: none; letter-spacing: 0; }
+
+  /* Gate indicator + parking lot layout */
+  .lot-frame {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 14px 18px;
+    margin-bottom: 24px;
+  }
+
+  .gate-bar {
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+    margin: 4px 8px 16px;
+    padding: 8px 14px;
+    background: var(--bg-2);
+    border: 1px dashed var(--border-2);
+    border-radius: var(--radius-sm);
+    font-size: 12px;
+    color: var(--muted);
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    font-weight: 600;
+  }
+  .gate-bar .arrow { color: var(--blue); font-size: 14px; }
+
+  .slot-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+  }
+
+  .slot-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px 14px 14px;
+    transition: border-color 0.25s, transform 0.15s, background 0.25s;
+    position: relative;
+    overflow: hidden;
+  }
+  .slot-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 3px;
+    background: var(--border);
+    transition: background 0.25s;
+  }
+  .slot-card.occupied              { border-color: #ef444460; background: linear-gradient(180deg, #2a1a26 0%, var(--card) 30%); }
+  .slot-card.occupied::before      { background: var(--red); }
+  .slot-card.reserved              { border-color: #f59e0b60; background: linear-gradient(180deg, #2a2316 0%, var(--card) 30%); }
+  .slot-card.reserved::before      { background: var(--amber); }
+  .slot-card.available             { border-color: #22c55e40; }
+  .slot-card.available::before     { background: var(--green); }
+
+  .slot-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+  }
+
+  .slot-label { display: flex; flex-direction: column; gap: 2px; }
+  .slot-number { font-size: 16px; font-weight: 700; letter-spacing: -0.01em; }
+  .slot-position { font-size: 11px; color: var(--muted); letter-spacing: 0.04em; }
+
+  .slot-dot {
+    width: 11px; height: 11px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .dot-green  { background: var(--green); box-shadow: 0 0 8px #22c55ea0; animation: pulse 2s ease-in-out infinite; }
+  .dot-red    { background: var(--red);   box-shadow: 0 0 8px #ef4444a0; }
+  .dot-amber  { background: var(--amber); box-shadow: 0 0 8px #f59e0ba0; animation: pulse 1.5s ease-in-out infinite; }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50%      { opacity: 0.55; }
+  }
+
+  .slot-status {
+    font-size: 13px;
+    font-weight: 500;
+    margin-bottom: 14px;
+  }
+  .slot-status.green { color: var(--green); }
+  .slot-status.red   { color: var(--red); }
+  .slot-status.amber { color: var(--amber); }
+
+  .reserve-btn {
+    width: 100%;
+    border: 1px solid transparent;
+    border-radius: var(--radius-sm);
+    padding: 9px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity 0.2s, transform 0.1s;
+  }
+  .reserve-btn:hover:not(:disabled) { opacity: 0.85; }
+  .reserve-btn:active:not(:disabled) { transform: translateY(1px); }
+  .reserve-btn:disabled { cursor: not-allowed; }
+
+  .btn-reserve   { background: var(--blue-bg);   color: var(--blue);   border-color: #3b82f640; }
+  .btn-unreserve { background: var(--amber-bg);  color: var(--amber);  border-color: #f59e0b40; }
+  .btn-taken     { background: var(--red-bg);    color: var(--red);    border-color: #ef444440; opacity: 0.7; }
+
+  /* Notifications */
+  .notif-list { display: flex; flex-direction: column; gap: 10px; }
+
+  .notif-item {
+    background: var(--red-bg);
+    border: 1px solid #ef444430;
+    border-left: 3px solid var(--red);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+    animation: slideIn 0.3s ease-out;
+  }
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateY(-8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .notif-text { font-size: 14px; line-height: 1.45; }
+  .notif-time { font-size: 11px; color: var(--muted); margin-top: 3px; }
+
+  .dismiss-btn {
+    background: none;
+    border: 1px solid #ef444450;
+    color: var(--red);
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-size: 12px;
+    cursor: pointer;
+    margin-top: 2px;
+    flex-shrink: 0;
+    transition: background 0.2s;
+  }
+  .dismiss-btn:hover { background: #ef444420; }
+
+  .empty-state {
+    color: var(--muted);
+    font-size: 13px;
+    text-align: center;
+    padding: 22px 16px;
+    background: var(--surface);
+    border: 1px dashed var(--border);
+    border-radius: var(--radius);
+  }
+
+  /* Footer */
+  .footer {
+    text-align: center;
+    color: var(--muted-2);
+    font-size: 11px;
+    margin-top: 28px;
+    padding-top: 18px;
+    border-top: 1px solid var(--border);
+  }
+
+  /* Toast */
+  #toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%) translateY(80px);
+    background: var(--card);
+    border: 1px solid var(--border-2);
+    border-radius: 10px;
+    padding: 11px 18px;
+    font-size: 14px;
+    z-index: 100;
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    white-space: nowrap;
+    pointer-events: none;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+  }
+  #toast.show { transform: translateX(-50%) translateY(0); }
+</style>
+</head>
+<body>
+
+<!-- ── AUTH SCREEN ── -->
+<div id="auth-screen">
+  <div class="auth-card">
+    <div class="auth-logo">🅿️</div>
+    <div class="auth-title">Smart Parking</div>
+    <div class="auth-sub">Owner dashboard — sign in to continue</div>
+
+    <div class="field">
+      <label>Email</label>
+      <input type="email" id="email" placeholder="owner@email.com" autocomplete="email">
+    </div>
+    <div class="field">
+      <label>Password</label>
+      <input type="password" id="password" placeholder="••••••••" autocomplete="current-password">
+    </div>
+    <button class="btn-primary" id="login-btn" onclick="signIn()">Sign In</button>
+    <div class="auth-error" id="auth-error"></div>
+  </div>
+</div>
+
+<!-- ── DASHBOARD ── -->
+<div id="app-screen">
+  <div class="topbar">
+    <div class="topbar-left">
+      <div class="topbar-logo">🅿️</div>
+      <div class="topbar-title">Smart Parking</div>
+    </div>
+    <div class="topbar-right">
+      <div class="conn-pill" id="conn-pill"><span class="dot"></span><span class="label"></span></div>
+      <button class="signout-btn" onclick="signOut()">Sign out</button>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- Available count -->
+    <div class="summary-card">
+      <div>
+        <div class="summary-label">Available slots</div>
+        <div class="summary-count" id="avail-count">--</div>
+        <div class="summary-total" id="avail-total">of -- total</div>
+      </div>
+      <div class="summary-ring" id="summary-ring">--</div>
+    </div>
+
+    <!-- Parking lot layout -->
+    <div class="section-title">
+      <span>Parking Lot</span>
+      <span class="hint" id="lot-hint">live</span>
+    </div>
+    <div class="lot-frame">
+      <div class="gate-bar">
+        <span class="arrow">→</span>
+        <span>Entry / Exit Gate</span>
+        <span class="arrow">←</span>
+      </div>
+      <div class="slot-grid" id="slot-grid">
+        <!-- injected by JS -->
+      </div>
+    </div>
+
+    <!-- Notifications -->
+    <div class="section-title">
+      <span>Alerts</span>
+    </div>
+    <div class="notif-list" id="notif-list">
+      <div class="empty-state">No alerts</div>
+    </div>
+
+    <div class="footer">Smart Parking System · ESP32 + Firebase</div>
+
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<script>
+// ─────────────────────────────────────────────
+//  FIREBASE CONFIG
+// ─────────────────────────────────────────────
+const firebaseConfig = {
+  apiKey:            "AIzaSyA81SZMQ-uIRluvJJ2r9bgu9KHL6mXCZH4",
+  authDomain:        "smartparking-93af3.firebaseapp.com",
+  databaseURL:       "https://smartparking-93af3-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId:         "smartparking-93af3",
+  storageBucket:     "smartparking-93af3.appspot.com",
+  messagingSenderId: "887157102526",
+  appId:             "1:887157102526:web:07aa5cfdbd4895dd5fcbef",
+  measurementId:     "G-HE7WNKVMY2"
+};
+
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db   = firebase.database();
+
+// Number of slots in firmware (matches NUM_SLOTS in SmartParking.ino)
+const NUM_SLOTS = 8;
+
+// Phantom slots that exist in firmware but have no physical hardware.
+// Real slots: 1 (A), 2 (B), 5 (C), 6 (D).
+const HIDDEN_SLOTS = [3, 4, 7, 8];
+
+// Display the real slots in the physical layout:
+//       --- GATE ---
+//        A  |  C
+//        B  |  D
+// Top row first (1, 5), then bottom row (2, 6).
+const DISPLAY_ORDER = [1, 5, 2, 6];
+
+// Friendly position label for each real slot.
+const POSITION_LABEL = { 1: 'A', 2: 'B', 5: 'C', 6: 'D' };
+
+const REAL_SLOTS = NUM_SLOTS - HIDDEN_SLOTS.length;
+
+// ─── STATE ───────────────────────────────────
+let slotData = {};
+let systemData = { availableSlots: REAL_SLOTS, totalSlots: REAL_SLOTS };
+let notifications = [];
+
+// ─── AUTH ────────────────────────────────────
+function signIn() {
+  const email = document.getElementById('email').value.trim();
+  const pass  = document.getElementById('password').value;
+  const btn   = document.getElementById('login-btn');
+  const err   = document.getElementById('auth-error');
+  err.textContent = '';
+
+  if (!email || !pass) {
+    err.textContent = 'Please enter your email and password.';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Signing in...';
+
+  auth.signInWithEmailAndPassword(email, pass)
+    .catch(e => {
+      err.textContent = 'Incorrect email or password.';
+      btn.disabled = false;
+      btn.textContent = 'Sign In';
+    });
+}
+
+function signOut() { auth.signOut(); }
+
+// Allow Enter key on either field
+['email', 'password'].forEach(id => {
+  document.getElementById(id).addEventListener('keydown', e => {
+    if (e.key === 'Enter') signIn();
+  });
+});
+
+auth.onAuthStateChanged(user => {
+  if (user) {
+    document.getElementById('auth-screen').style.display = 'none';
+    document.getElementById('app-screen').style.display  = 'block';
+    startListening();
+  } else {
+    document.getElementById('auth-screen').style.display = 'flex';
+    document.getElementById('app-screen').style.display  = 'none';
+    const btn = document.getElementById('login-btn');
+    btn.disabled = false;
+    btn.textContent = 'Sign In';
+    stopListening();
+  }
+});
+
+// ─── REALTIME LISTENERS ──────────────────────
+let listeners = [];
+
+function startListening() {
+  buildSlotGrid();
+
+  const sysRef = db.ref('/system');
+  sysRef.on('value', snap => {
+    const d = snap.val() || {};
+    systemData.availableSlots = d.availableSlots ?? REAL_SLOTS;
+    systemData.totalSlots     = d.totalSlots     ?? REAL_SLOTS;
+    updateSummary();
+  });
+  listeners.push(() => sysRef.off());
+
+  const slotsRef = db.ref('/slots');
+  slotsRef.on('value', snap => {
+    const all = snap.val() || {};
+    for (let i = 1; i <= NUM_SLOTS; i++) {
+      const key = 'slot' + i;
+      slotData[i] = all[key] || { occupied: false, reserved: false };
+
+      if (slotData[i].notifyOwner) {
+        addNotification(i, slotData[i].notifyMessage || `Slot ${i} has been taken.`);
+        db.ref(`/slots/slot${i}/notifyOwner`).set(false);
+      }
+    }
+    updateAllSlotCards();
+  });
+  listeners.push(() => slotsRef.off());
+
+  const connRef = db.ref('.info/connected');
+  connRef.on('value', snap => updateConnPill(snap.val() === true));
+  listeners.push(() => connRef.off());
+}
+
+function stopListening() {
+  listeners.forEach(fn => fn());
+  listeners = [];
+}
+
+// ─── RESERVE / UNRESERVE ─────────────────────
+function toggleReserve(slotNum) {
+  const current = slotData[slotNum]?.reserved ?? false;
+  const label   = POSITION_LABEL[slotNum] ? `Slot ${slotNum} (${POSITION_LABEL[slotNum]})` : `Slot ${slotNum}`;
+  db.ref(`/slots/slot${slotNum}/reserved`).set(!current)
+    .then(() => showToast(`${label} ${!current ? 'reserved' : 'unreserved'}`))
+    .catch(() => showToast('Failed — check connection'));
+}
+
+// ─── NOTIFICATIONS ───────────────────────────
+function addNotification(slotNum, message) {
+  if (notifications.find(n => n.slot === slotNum && !n.dismissed)) return;
+  const label = POSITION_LABEL[slotNum] ? `Slot ${slotNum} (${POSITION_LABEL[slotNum]})` : `Slot ${slotNum}`;
+  const friendly = message.replace(new RegExp(`Slot ${slotNum}`), label);
+  notifications.unshift({
+    slot: slotNum,
+    message: friendly,
+    time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    dismissed: false
+  });
+  renderNotifications();
+}
+
+function dismissNotification(idx) {
+  if (notifications[idx]) notifications[idx].dismissed = true;
+  renderNotifications();
+}
+
+function renderNotifications() {
+  const list   = document.getElementById('notif-list');
+  const active = notifications.filter(n => !n.dismissed);
+  if (!active.length) {
+    list.innerHTML = '<div class="empty-state">No alerts yet</div>';
+    return;
+  }
+  list.innerHTML = active.map(n => {
+    const realIdx = notifications.indexOf(n);
+    return `
+      <div class="notif-item">
+        <div>
+          <div class="notif-text">⚠️ ${escapeHtml(n.message)}</div>
+          <div class="notif-time">${n.time}</div>
+        </div>
+        <button class="dismiss-btn" onclick="dismissNotification(${realIdx})">Dismiss</button>
+      </div>`;
+  }).join('');
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({
+    '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;'
+  }[c]));
+}
+
+// ─── UI BUILDERS ─────────────────────────────
+function buildSlotGrid() {
+  const grid = document.getElementById('slot-grid');
+  grid.innerHTML = '';
+  DISPLAY_ORDER.forEach(i => {
+    if (HIDDEN_SLOTS.includes(i)) return;
+    const pos  = POSITION_LABEL[i] || '';
+    const card = document.createElement('div');
+    card.className = 'slot-card available';
+    card.id = `slot-card-${i}`;
+    card.innerHTML = `
+      <div class="slot-header">
+        <div class="slot-label">
+          <div class="slot-number">Slot ${i}</div>
+          <div class="slot-position">${pos ? 'Position ' + pos : ''}</div>
+        </div>
+        <div class="slot-dot dot-green" id="slot-dot-${i}"></div>
+      </div>
+      <div class="slot-status green" id="slot-status-${i}">Available</div>
+      <button class="reserve-btn btn-reserve" id="slot-btn-${i}" onclick="toggleReserve(${i})">Reserve</button>
+    `;
+    grid.appendChild(card);
+  });
+}
+
+function updateAllSlotCards() {
+  DISPLAY_ORDER.forEach(i => {
+    if (HIDDEN_SLOTS.includes(i)) return;
+    updateSlotCard(i);
+  });
+}
+
+function updateSlotCard(i) {
+  const d        = slotData[i] || {};
+  const occupied = d.occupied ?? false;
+  const reserved = d.reserved ?? false;
+
+  const card   = document.getElementById(`slot-card-${i}`);
+  const dot    = document.getElementById(`slot-dot-${i}`);
+  const status = document.getElementById(`slot-status-${i}`);
+  const btn    = document.getElementById(`slot-btn-${i}`);
+  if (!card) return;
+
+  if (occupied) {
+    card.className   = 'slot-card occupied';
+    dot.className    = 'slot-dot dot-red';
+    status.className = 'slot-status red';
+    status.textContent = 'Occupied';
+    btn.className    = 'reserve-btn btn-taken';
+    btn.textContent  = 'Occupied';
+    btn.disabled     = true;
+  } else if (reserved) {
+    card.className   = 'slot-card reserved';
+    dot.className    = 'slot-dot dot-amber';
+    status.className = 'slot-status amber';
+    status.textContent = 'Reserved';
+    btn.className    = 'reserve-btn btn-unreserve';
+    btn.textContent  = 'Cancel reservation';
+    btn.disabled     = false;
+  } else {
+    card.className   = 'slot-card available';
+    dot.className    = 'slot-dot dot-green';
+    status.className = 'slot-status green';
+    status.textContent = 'Available';
+    btn.className    = 'reserve-btn btn-reserve';
+    btn.textContent  = 'Reserve';
+    btn.disabled     = false;
+  }
+}
+
+function updateSummary() {
+  const avail = systemData.availableSlots ?? REAL_SLOTS;
+  const total = systemData.totalSlots     ?? REAL_SLOTS;
+  const pct   = total > 0 ? Math.round((avail / total) * 100) : 0;
+
+  document.getElementById('avail-count').textContent = avail;
+  document.getElementById('avail-total').textContent = `of ${total} total`;
+
+  const ring = document.getElementById('summary-ring');
+  ring.textContent = pct + '%';
+
+  // Colour based on availability
+  if (avail === 0) {
+    ring.style.background   = '#ef444425';
+    ring.style.color        = '#ef4444';
+    ring.style.borderColor  = '#ef444450';
+  } else if (avail <= Math.max(1, Math.floor(total * 0.3))) {
+    ring.style.background   = '#f59e0b25';
+    ring.style.color        = '#f59e0b';
+    ring.style.borderColor  = '#f59e0b50';
+  } else {
+    ring.style.background   = '#22c55e25';
+    ring.style.color        = '#22c55e';
+    ring.style.borderColor  = '#22c55e50';
+  }
+}
+
+function updateConnPill(online) {
+  const pill = document.getElementById('conn-pill');
+  pill.className = 'conn-pill ' + (online ? 'online' : 'offline');
+}
+
+// ─── TOAST ───────────────────────────────────
+let toastTimer;
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove('show'), 2500);
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,5 @@
+(fp_lib_table
+  (version 7)
+  (lib (name "MyFuse_THT")(type "KiCad")(uri "D:/KiCad/Components/My components/MyFuse_THT.pretty")(options "")(descr ""))
+  (lib (name "EndTerminal_THT")(type "KiCad")(uri "D:/KiCad/Components/My components/EndTerminal_THT.pretty")(options "")(descr ""))
+)

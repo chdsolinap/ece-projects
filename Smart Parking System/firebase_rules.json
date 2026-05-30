@@ -1,0 +1,121 @@
+{
+  // ============================================================
+  //  SMART PARKING — Firebase Realtime Database Security Rules
+  // ============================================================
+  //
+  //  Trust model
+  //  -----------
+  //  - ESP32 firmware authenticates with a legacy database secret
+  //    (FIREBASE_AUTH in SmartParking.ino).  Legacy secrets BYPASS
+  //    every rule below, so the hardware retains full write authority
+  //    over occupancy, system counters, and owner notifications.
+  //  - The web dashboard authenticates each user via Firebase Auth
+  //    (email + password).  Every request from the browser is forced
+  //    through the rules below.
+  //
+  //  Default posture
+  //  ---------------
+  //  Deny by default at the root.  Each subtree explicitly grants the
+  //  narrowest read / write surface the dashboard needs.  Unknown
+  //  paths and unknown fields are rejected.
+  //
+  //  Data contract (single source of truth)
+  //  --------------------------------------
+  //  /slots/slot{1..8}/occupied      bool  hardware-written
+  //  /slots/slot{1..8}/reserved      bool  dashboard ↔ hardware
+  //  /slots/slot{1..8}/notifyOwner   bool  hardware sets true,
+  //                                        dashboard may set false
+  //  /slots/slot{1..8}/notifyMessage str   hardware-written (<=200 ch)
+  //  /system/availableSlots          int   hardware-written (0..8)
+  //  /system/totalSlots              int   hardware-written (1..8)
+  //
+  // ============================================================
+
+  "rules": {
+
+    // Closed at the root.  No reads, no writes, no listing.
+    ".read":  false,
+    ".write": false,
+
+    // --------------------------------------------------------
+    //  /slots
+    // --------------------------------------------------------
+    "slots": {
+
+      // Authenticated dashboard users can read all slot state.
+      ".read": "auth != null",
+
+      "$slotId": {
+
+        // Only slot1..slot8 are valid.  Reject slot0, slot9, "foo", etc.
+        ".validate": "$slotId.matches(/^slot[1-8]$/)",
+
+        // ---- occupied --------------------------------------
+        // Hardware-controlled.  Dashboard users CANNOT write
+        // (no .write rule, root default of false applies).
+        // Validation still applies to the hardware path so a
+        // bug that wrote a string or null would be rejected.
+        "occupied": {
+          ".validate": "newData.isBoolean()"
+        },
+
+        // ---- reserved --------------------------------------
+        // Dashboard users may reserve or unreserve.  Reserving
+        // an already-occupied slot is disallowed (no double-
+        // booking a stall that already has a car in it).
+        "reserved": {
+          ".write":    "auth != null",
+          ".validate": "newData.isBoolean() && (newData.val() == false || data.parent().child('occupied').val() != true)"
+        },
+
+        // ---- notifyOwner -----------------------------------
+        // Hardware sets this true when a reserved slot is taken.
+        // Dashboard users may only DISMISS (set false); they
+        // cannot inject fake alerts.
+        "notifyOwner": {
+          ".write":    "auth != null && newData.val() == false",
+          ".validate": "newData.isBoolean()"
+        },
+
+        // ---- notifyMessage ---------------------------------
+        // Hardware-written only.  Capped at 200 characters so a
+        // misbehaving client cannot bloat the database.
+        "notifyMessage": {
+          ".validate": "newData.isString() && newData.val().length <= 200"
+        },
+
+        // Reject any unknown field name under a slot
+        // (e.g. /slots/slot1/badField -> denied).
+        "$other": {
+          ".validate": false
+        }
+      }
+    },
+
+    // --------------------------------------------------------
+    //  /system
+    // --------------------------------------------------------
+    "system": {
+
+      ".read": "auth != null",
+
+      // Both counters are hardware-written.  No .write rule means
+      // dashboard users cannot tamper with availability counts.
+      "availableSlots": {
+        ".validate": "newData.isNumber() && newData.val() >= 0 && newData.val() <= 8"
+      },
+
+      "totalSlots": {
+        ".validate": "newData.isNumber() && newData.val() >= 1 && newData.val() <= 8"
+      },
+
+      "$other": {
+        ".validate": false
+      }
+    }
+
+    // Any top-level path other than /slots and /system is implicitly
+    // denied because the root .read and .write are both false and no
+    // descendant rule grants access.
+  }
+}
