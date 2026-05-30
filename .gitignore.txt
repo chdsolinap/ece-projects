@@ -1,0 +1,4 @@
+.history/
+*-backups/
+*.lck
+fp-info-cache
